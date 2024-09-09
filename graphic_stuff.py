@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import simpledialog
-import threading
+import sys
 
 class GraphicStuff:
     def __init__(self):
@@ -112,6 +112,8 @@ class GraphicStuff:
 
             copy_button = tk.Button(frame, text="Copy", command=copy_to_clipboard, font=("Arial", 12))
             copy_button.pack(pady=(10, 0))
+
+            root.protocol("WM_DELETE_WINDOW", lambda: sys.exit())  # Close the app when window is closed
 
             root.mainloop()
 

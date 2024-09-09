@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans, DBSCAN
+from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
@@ -52,15 +53,57 @@ def hierarchical_clustering(data, n_clusters):
         print(f"Error applying hierarchical clustering: {e}")
         raise
 
-# Function to apply DBSCAN
-def dbscan_clustering(data, eps, min_samples):
+# Função para encontrar o melhor valor de eps usando o k-distância
+def find_optimal_eps(data, min_samples):
     try:
+        neigh = NearestNeighbors(n_neighbors=min_samples)
+        nbrs = neigh.fit(data)
+        distances, indices = nbrs.kneighbors(data)
+        distances = np.sort(distances[:, min_samples - 1], axis=0)
+        plt.figure('K-distance plot')
+        plt.plot(distances)
+        plt.title('K-distance plot for DBSCAN')
+        plt.xlabel('Points sorted by distance')
+        plt.ylabel(f'{min_samples}-th Nearest Neighbor Distance')
+        plt.show()
+        
+        # Retornar o valor de eps sugerido (por exemplo, o ponto de cotovelo)
+        # Aqui, pegamos o valor em torno do percentil 90, que muitas vezes é um bom ponto de inflexão
+        return np.percentile(distances, 90)
+    except Exception as e:
+        print(f"Error in finding optimal eps: {e}")
+        return 0.5  # Retorna um valor padrão se algo der errado
+
+# Função DBSCAN ajustada
+def dbscan_clustering_with_auto_eps(data, min_samples):
+    try:
+        # Calcula o eps sugerido automaticamente
+        eps = find_optimal_eps(data, min_samples)
+        print(f"Optimal eps calculated: {eps}")
+        
         dbscan = DBSCAN(eps=eps, min_samples=min_samples)
         clusters = dbscan.fit_predict(data)
         return clusters
     except Exception as e:
         print(f"Error applying DBSCAN clustering: {e}")
         raise
+
+# Function to visualize clusters
+def visualize_clusters(data, clusters, centers=None, title="Clusters"):
+    try:
+        plt.figure(title)
+        unique_clusters = np.unique(clusters)
+        for cluster in unique_clusters:
+            plt.scatter(data[clusters == cluster, 0], data[clusters == cluster, 1], label=f'Cluster {cluster}', alpha=0.6)
+        if centers is not None:
+            plt.scatter(centers[:, 0], centers[:, 1], c='red', marker='X', s=100, label='Cluster Centers')
+        plt.title(title)
+        plt.xlabel('Feature 1')
+        plt.ylabel('Feature 2')
+        plt.legend()
+        plt.show()
+    except Exception as e:
+        print(f"Error during visualization: {e}")
 
 graphic_stuff = GraphicStuff()
 selected_dataset = graphic_stuff.create_dataset_buttons()
@@ -132,6 +175,14 @@ try:
 except Exception as e:
     print(f"Error during hierarchical clustering or visualization: {e}")
 
+# Apply DBSCAN
+try:
+    min_samples = 20  # Mantenha o valor de min_samples ajustável
+    dbscan_clusters = dbscan_clustering_with_auto_eps(processed_data, min_samples)
+    visualize_clusters(processed_data, dbscan_clusters, title="DBSCAN Clustering with Auto Eps")
+except Exception as e:
+    print(f"Error during DBSCAN clustering: {e}")
+
 # Apply K-means with the ideal number of clusters
 try:
     n_clusters = graphic_stuff.get_cluster_count()
@@ -139,17 +190,9 @@ try:
 
     centers = kmeans.cluster_centers_
 
-    # Visualize the clusters and centers
-    plt.figure('Clusters and centers')
-    for cluster in np.unique(clusters):
-        plt.scatter(processed_data[clusters == cluster, 0], processed_data[clusters == cluster, 1], 
-                    label=f'Cluster {cluster}', alpha=0.6)
-    plt.scatter(centers[:, 0], centers[:, 1], c='red', marker='X', s=100, label='Cluster Centers')
-    plt.title('Clusters and K-means Centers')
-    plt.xlabel('Feature 1')
-    plt.ylabel('Feature 2')
-    plt.legend()
-    plt.show()
+    # Visualize the clusters and centers using the new function
+    visualize_clusters(processed_data, clusters, centers=centers, title="Clusters and K-means Centers")
+
 
     graphic_stuff.show_centers(centers)
     
